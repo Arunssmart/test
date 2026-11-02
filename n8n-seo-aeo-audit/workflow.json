@@ -1,0 +1,899 @@
+{
+  "name": "SEO + AEO Site Audit → Content Strategy (agentic)",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "a1b2c3d4-0000-4000-8000-000000000001",
+      "name": "Start",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a1b2c3d4-0000-4000-8000-000000000002",
+              "name": "siteUrl",
+              "value": "https://www.example.com",
+              "type": "string"
+            },
+            {
+              "id": "a1b2c3d4-0000-4000-8000-000000000003",
+              "name": "brandName",
+              "value": "Example Brand",
+              "type": "string"
+            },
+            {
+              "id": "a1b2c3d4-0000-4000-8000-000000000004",
+              "name": "businessType",
+              "value": "dental clinic chain",
+              "type": "string"
+            },
+            {
+              "id": "a1b2c3d4-0000-4000-8000-000000000005",
+              "name": "market",
+              "value": "Chennai, India",
+              "type": "string"
+            },
+            {
+              "id": "a1b2c3d4-0000-4000-8000-000000000006",
+              "name": "businessGoal",
+              "value": "More appointment bookings from Google and AI assistants",
+              "type": "string"
+            },
+            {
+              "id": "a1b2c3d4-0000-4000-8000-000000000007",
+              "name": "competitors",
+              "value": "competitor-one.com, competitor-two.com",
+              "type": "string"
+            },
+            {
+              "id": "a1b2c3d4-0000-4000-8000-000000000008",
+              "name": "customerQuestions",
+              "value": "How much does a root canal cost in Chennai?\nIs teeth whitening safe?\nWhich is the best dental clinic near me for kids?\nHow long do dental implants last?\nDo you offer EMI for braces?",
+              "type": "string"
+            },
+            {
+              "id": "a1b2c3d4-0000-4000-8000-000000000009",
+              "name": "aiVisibilityNotes",
+              "value": "Paste here what ChatGPT, Perplexity and Google AI Overviews answered when you asked the questions above. Write down which brands they named and whether this brand appeared.",
+              "type": "string"
+            },
+            {
+              "id": "a1b2c3d4-0000-4000-8000-000000000010",
+              "name": "maxPages",
+              "value": 25,
+              "type": "number"
+            },
+            {
+              "id": "a1b2c3d4-0000-4000-8000-000000000011",
+              "name": "pagespeedApiKey",
+              "value": "",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a1b2c3d4-0000-4000-8000-000000000012",
+      "name": "1. Brand Inputs (EDIT ME)",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        220,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Cleans up what you typed in \"1. Brand Inputs\" so every later step can use it.\n// Small link parser (n8n Code nodes do not include the browser's URL tool).\nfunction parseUrl(href, base) {\n  href = String(href || '').trim();\n  if (!href) return null;\n  if (/^[a-z][a-z0-9+.-]*:/i.test(href) && !/^https?:/i.test(href)) return null; // mailto:, tel:, javascript:\n  if (!/^https?:/i.test(href)) {\n    const b = base ? parseUrl(base) : null;\n    if (!b) return null;\n    if (href.startsWith('//')) href = b.protocol + href;\n    else if (href.startsWith('/')) href = b.origin + href;\n    else if (href.startsWith('?') || href.startsWith('#')) href = b.origin + b.pathname + href;\n    else href = b.origin + b.pathname.replace(/[^/]*$/, '') + href;\n  }\n  const m = href.match(/^(https?:)\\/\\/([^/?#]+)([^?#]*)(\\?[^#]*)?(#.*)?$/i);\n  if (!m) return null;\n  const out = [];\n  for (const seg of (m[3] || '/').split('/')) {\n    if (seg === '..') { if (out.length > 1) out.pop(); } else if (seg !== '.') out.push(seg);\n  }\n  let pathname = out.join('/');\n  if (!pathname.startsWith('/')) pathname = '/' + pathname;\n  const protocol = m[1].toLowerCase(), host = m[2].toLowerCase();\n  return { protocol, host, hostname: host.replace(/:\\d+$/, ''), origin: protocol + '//' + host,\n    pathname, search: m[4] && m[4] !== '?' ? m[4] : '', href: protocol + '//' + host + pathname + (m[4] && m[4] !== '?' ? m[4] : '') };\n}\n\nconst i = $input.first().json;\n\nlet raw = String(i.siteUrl || '').trim();\nif (!raw) throw new Error('Please type the website address in \"1. Brand Inputs\".');\nif (!/^https?:\\/\\//i.test(raw)) raw = 'https://' + raw;\nconst u = parseUrl(raw);\nif (!u) throw new Error('This does not look like a website address: ' + raw);\n\nconst toList = (text, splitter) =>\n  String(text || '').split(splitter).map(s => s.trim()).filter(Boolean);\n\nreturn [{\n  json: {\n    brandName: i.brandName,\n    businessType: i.businessType,\n    market: i.market,\n    businessGoal: i.businessGoal,\n    origin: u.origin,                         // e.g. https://www.brand.com\n    host: u.hostname.replace(/^www\\./, ''),   // e.g. brand.com\n    competitors: toList(i.competitors, /[,\\n]/),\n    questions: toList(i.customerQuestions, /\\n/),\n    // If the placeholder text was left in, treat it as \"not collected\"\n    aiVisibilityNotes: (!i.aiVisibilityNotes || /^paste here/i.test(i.aiVisibilityNotes)) ? 'Not collected yet.' : i.aiVisibilityNotes,\n    maxPages: Math.min(Math.max(parseInt(i.maxPages, 10) || 25, 1), 100),\n    pagespeedApiKey: String(i.pagespeedApiKey || '').trim(),\n  },\n}];\n"
+      },
+      "id": "a1b2c3d4-0000-4000-8000-000000000013",
+      "name": "2. Prepare Inputs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $('2. Prepare Inputs').first().json.origin }}/robots.txt",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "Mozilla/5.0 (compatible; SEO-AEO-Audit/1.0; +n8n workflow)"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true,
+              "responseFormat": "text"
+            }
+          },
+          "timeout": 20000
+        }
+      },
+      "id": "a1b2c3d4-0000-4000-8000-000000000014",
+      "name": "3. Fetch robots.txt",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        660,
+        240
+      ],
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "url": "={{ $('2. Prepare Inputs').first().json.origin }}/sitemap.xml",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "Mozilla/5.0 (compatible; SEO-AEO-Audit/1.0; +n8n workflow)"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true,
+              "responseFormat": "text"
+            }
+          },
+          "timeout": 20000
+        }
+      },
+      "id": "a1b2c3d4-0000-4000-8000-000000000015",
+      "name": "4. Fetch sitemap.xml",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        880,
+        240
+      ],
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "url": "={{ $('2. Prepare Inputs').first().json.origin }}/llms.txt",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "Mozilla/5.0 (compatible; SEO-AEO-Audit/1.0; +n8n workflow)"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true,
+              "responseFormat": "text"
+            }
+          },
+          "timeout": 20000
+        }
+      },
+      "id": "a1b2c3d4-0000-4000-8000-000000000016",
+      "name": "5. Fetch llms.txt",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1100,
+        240
+      ],
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "url": "={{ $('2. Prepare Inputs').first().json.origin }}/",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "Mozilla/5.0 (compatible; SEO-AEO-Audit/1.0; +n8n workflow)"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true,
+              "responseFormat": "text"
+            }
+          },
+          "timeout": 20000
+        }
+      },
+      "id": "a1b2c3d4-0000-4000-8000-000000000017",
+      "name": "6. Fetch Homepage",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1320,
+        240
+      ],
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "url": "=https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url={{ encodeURIComponent($('2. Prepare Inputs').first().json.origin + '/') }}&strategy=mobile&category=performance{{ $('2. Prepare Inputs').first().json.pagespeedApiKey ? '&key=' + $('2. Prepare Inputs').first().json.pagespeedApiKey : '' }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 90000
+        }
+      },
+      "id": "a1b2c3d4-0000-4000-8000-000000000018",
+      "name": "7. Speed Check (PageSpeed)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1540,
+        240
+      ],
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Decides WHICH pages to check: the homepage, the pages it links to\n// (menu + footer = what the brand thinks matters), then sitemap pages.\n// Small link parser (n8n Code nodes do not include the browser's URL tool).\nfunction parseUrl(href, base) {\n  href = String(href || '').trim();\n  if (!href) return null;\n  if (/^[a-z][a-z0-9+.-]*:/i.test(href) && !/^https?:/i.test(href)) return null; // mailto:, tel:, javascript:\n  if (!/^https?:/i.test(href)) {\n    const b = base ? parseUrl(base) : null;\n    if (!b) return null;\n    if (href.startsWith('//')) href = b.protocol + href;\n    else if (href.startsWith('/')) href = b.origin + href;\n    else if (href.startsWith('?') || href.startsWith('#')) href = b.origin + b.pathname + href;\n    else href = b.origin + b.pathname.replace(/[^/]*$/, '') + href;\n  }\n  const m = href.match(/^(https?:)\\/\\/([^/?#]+)([^?#]*)(\\?[^#]*)?(#.*)?$/i);\n  if (!m) return null;\n  const out = [];\n  for (const seg of (m[3] || '/').split('/')) {\n    if (seg === '..') { if (out.length > 1) out.pop(); } else if (seg !== '.') out.push(seg);\n  }\n  let pathname = out.join('/');\n  if (!pathname.startsWith('/')) pathname = '/' + pathname;\n  const protocol = m[1].toLowerCase(), host = m[2].toLowerCase();\n  return { protocol, host, hostname: host.replace(/:\\d+$/, ''), origin: protocol + '//' + host,\n    pathname, search: m[4] && m[4] !== '?' ? m[4] : '', href: protocol + '//' + host + pathname + (m[4] && m[4] !== '?' ? m[4] : '') };\n}\n\nconst cfg = $('2. Prepare Inputs').first().json;\n// The HTTP Request node stores the downloaded file in \"data\" (\"body\" in some older versions)\nconst content = r => (r && typeof r.data === 'string') ? r.data : ((r && typeof r.body === 'string') ? r.body : '');\nconst homeHtml = content($('6. Fetch Homepage').first().json);\nconst sitemapXml = content($('4. Fetch sitemap.xml').first().json);\n\n// Pages that are never worth auditing for SEO\nconst SKIP_PATH = /\\/(cart|checkout|account|login|signin|register|wp-admin|wp-json|cdn-cgi|feed|search|tag)(\\/|$)/i;\nconst SKIP_FILE = /\\.(jpe?g|png|gif|svg|webp|avif|ico|pdf|zip|mp4|mp3|css|js|json|xml|txt)$/i;\n\nconst seen = new Map(); // key (no trailing slash) -> { url, foundIn }\nfunction add(href, foundIn) {\n  const u = parseUrl(href, cfg.origin + '/');\n  if (!u) return;\n  if (u.hostname.replace(/^www\\./, '') !== cfg.host) return; // other websites\n  if (u.search) return;                                      // ?filters, ?ref= etc.\n  if (SKIP_PATH.test(u.pathname) || SKIP_FILE.test(u.pathname)) return;\n  const key = u.origin + u.pathname.replace(/\\/+$/, '');\n  if (!seen.has(key)) seen.set(key, { url: u.href, foundIn });\n}\n\nadd(cfg.origin + '/', 'homepage');\n\nconst links = [...homeHtml.matchAll(/<a\\b[^>]*?\\bhref\\s*=\\s*[\"']([^\"'#][^\"']*)[\"']/gi)].map(m => m[1]);\nlinks.forEach(h => add(h, 'homepage link'));\n\nconst locs = [...sitemapXml.matchAll(/<loc>\\s*(?:<!\\[CDATA\\[)?\\s*([^<\\s\\]]+)/gi)].map(m => m[1]);\nlocs.filter(l => !/\\.xml(\\.gz)?(\\?|$)/i.test(l)).forEach(l => add(l, 'sitemap'));\n\nreturn [...seen.values()].slice(0, cfg.maxPages).map(p => ({ json: p }));\n"
+      },
+      "id": "a1b2c3d4-0000-4000-8000-000000000019",
+      "name": "8. Build Page List",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        640
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.url }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "Mozilla/5.0 (compatible; SEO-AEO-Audit/1.0; +n8n workflow)"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true,
+              "responseFormat": "text"
+            }
+          },
+          "timeout": 20000,
+          "batching": {
+            "batch": {
+              "batchSize": 5,
+              "batchInterval": 1000
+            }
+          }
+        }
+      },
+      "id": "a1b2c3d4-0000-4000-8000-000000000020",
+      "name": "9. Fetch Pages",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        220,
+        640
+      ],
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Reads the HTML of every page and writes down plain FACTS.\n// No AI here on purpose: code does not hallucinate.\n// Small link parser (n8n Code nodes do not include the browser's URL tool).\nfunction parseUrl(href, base) {\n  href = String(href || '').trim();\n  if (!href) return null;\n  if (/^[a-z][a-z0-9+.-]*:/i.test(href) && !/^https?:/i.test(href)) return null; // mailto:, tel:, javascript:\n  if (!/^https?:/i.test(href)) {\n    const b = base ? parseUrl(base) : null;\n    if (!b) return null;\n    if (href.startsWith('//')) href = b.protocol + href;\n    else if (href.startsWith('/')) href = b.origin + href;\n    else if (href.startsWith('?') || href.startsWith('#')) href = b.origin + b.pathname + href;\n    else href = b.origin + b.pathname.replace(/[^/]*$/, '') + href;\n  }\n  const m = href.match(/^(https?:)\\/\\/([^/?#]+)([^?#]*)(\\?[^#]*)?(#.*)?$/i);\n  if (!m) return null;\n  const out = [];\n  for (const seg of (m[3] || '/').split('/')) {\n    if (seg === '..') { if (out.length > 1) out.pop(); } else if (seg !== '.') out.push(seg);\n  }\n  let pathname = out.join('/');\n  if (!pathname.startsWith('/')) pathname = '/' + pathname;\n  const protocol = m[1].toLowerCase(), host = m[2].toLowerCase();\n  return { protocol, host, hostname: host.replace(/:\\d+$/, ''), origin: protocol + '//' + host,\n    pathname, search: m[4] && m[4] !== '?' ? m[4] : '', href: protocol + '//' + host + pathname + (m[4] && m[4] !== '?' ? m[4] : '') };\n}\n\nconst pages = $('8. Build Page List').all();\n\nconst decode = s => String(s || '')\n  .replace(/&amp;/g, '&').replace(/&quot;/g, '\"').replace(/&#0?39;|&apos;/g, \"'\")\n  .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&nbsp;/g, ' ');\nconst clean = s => decode(String(s || '').replace(/<[^>]+>/g, ' ')).replace(/\\s+/g, ' ').trim();\nconst attrs = tag => {\n  const a = {};\n  for (const m of tag.matchAll(/([a-zA-Z_:.-]+)\\s*=\\s*(?:\"([^\"]*)\"|'([^']*)'|([^\\s>]+))/g)) {\n    a[m[1].toLowerCase()] = decode(m[2] ?? m[3] ?? m[4] ?? '');\n  }\n  return a;\n};\n\n// Finds every schema.org @type in JSON-LD, including inside @graph\nfunction schemaTypes(node, found) {\n  if (Array.isArray(node)) node.forEach(n => schemaTypes(n, found));\n  else if (node && typeof node === 'object') {\n    const t = node['@type'];\n    if (t) (Array.isArray(t) ? t : [t]).forEach(x => found.add(String(x)));\n    Object.values(node).forEach(v => schemaTypes(v, found));\n  }\n  return found;\n}\n\nreturn $input.all().map((item, i) => {\n  const r = item.json;\n  const url = pages[i] ? pages[i].json.url : 'unknown';\n  const status = r.error ? 0 : (r.statusCode || 0);\n  const html = typeof r.data === 'string' ? r.data : (typeof r.body === 'string' ? r.body : '');\n  const headers = r.headers || {};\n\n  const metas = [...html.matchAll(/<meta\\b[^>]*>/gi)].map(m => attrs(m[0]));\n  const meta = name => (metas.find(m => (m.name || m.property || '').toLowerCase() === name) || {}).content || '';\n  const links = [...html.matchAll(/<link\\b[^>]*>/gi)].map(m => attrs(m[0]));\n  const canonical = (links.find(l => (l.rel || '').toLowerCase().split(/\\s+/).includes('canonical')) || {}).href || '';\n\n  const title = clean((html.match(/<title[^>]*>([\\s\\S]*?)<\\/title>/i) || [])[1]);\n  const h1s = [...html.matchAll(/<h1\\b[^>]*>([\\s\\S]*?)<\\/h1>/gi)].map(m => clean(m[1])).filter(Boolean);\n  const subHeads = [...html.matchAll(/<h[23]\\b[^>]*>([\\s\\S]*?)<\\/h[23]>/gi)].map(m => clean(m[1]));\n\n  const types = new Set();\n  let brokenSchema = 0;\n  for (const m of html.matchAll(/<script[^>]*application\\/ld\\+json[^>]*>([\\s\\S]*?)<\\/script>/gi)) {\n    try { schemaTypes(JSON.parse(m[1]), types); } catch (e) { brokenSchema++; }\n  }\n\n  const imgs = [...html.matchAll(/<img\\b[^>]*>/gi)].map(m => attrs(m[0]));\n  const bodyText = clean(html\n    .replace(/<head[\\s\\S]*?<\\/head>/i, ' ')\n    .replace(/<(script|style|noscript|svg|template)\\b[\\s\\S]*?<\\/\\1>/gi, ' '));\n  const words = bodyText ? bodyText.split(' ').length : 0;\n  const scripts = (html.match(/<script\\b/gi) || []).length;\n\n  const robotsMeta = [meta('robots'), meta('googlebot'), headers['x-robots-tag'] || ''].join(' ').toLowerCase();\n  const canonicalAbs = canonical ? ((parseUrl(canonical, url) || {}).href || canonical) : '';\n  const sameUrl = (a, b) => a.replace(/\\/+$/, '') === b.replace(/\\/+$/, '');\n\n  return {\n    json: {\n      url,\n      foundIn: pages[i] ? pages[i].json.foundIn : '',\n      status,\n      fetchError: r.error ? String(r.error.message || r.error) : '',\n      title,\n      titleLength: title.length,\n      metaDescription: meta('description'),\n      h1Count: h1s.length,\n      h1: h1s.join(' | '),\n      questionHeadings: subHeads.filter(h => h.endsWith('?')).length,\n      words,\n      noindex: /noindex/.test(robotsMeta),\n      canonical: canonicalAbs,\n      canonicalPointsElsewhere: !!canonicalAbs && !sameUrl(canonicalAbs, url),\n      schemaTypes: [...types].join(', '),\n      brokenSchemaBlocks: brokenSchema,\n      imagesMissingAlt: imgs.filter(a => !a.alt || !a.alt.trim()).length,\n      imagesTotal: imgs.length,\n      hasViewport: !!meta('viewport'),\n      lang: (html.match(/<html\\b[^>]*\\blang\\s*=\\s*[\"']?([\\w-]+)/i) || [])[1] || '',\n      // Little text but lots of scripts = content probably loads with JavaScript.\n      // Google can usually render it; many AI crawlers can't.\n      looksJsRendered: words < 80 && scripts >= 3,\n      lastModified: meta('article:modified_time') || (html.match(/\"dateModified\"\\s*:\\s*\"([^\"]+)\"/) || [])[1] || '',\n    },\n  };\n});\n"
+      },
+      "id": "a1b2c3d4-0000-4000-8000-000000000021",
+      "name": "10. Extract Page Signals",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        640
+      ]
+    },
+    {
+      "parameters": {
+        "options": {
+          "fileName": "={{ 'pages-' + $('2. Prepare Inputs').first().json.host + '.csv' }}"
+        }
+      },
+      "id": "a1b2c3d4-0000-4000-8000-000000000022",
+      "name": "Page Table (CSV download)",
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [
+        660,
+        840
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Turns page facts + site files into a list of ISSUES using fixed rules.\n// Rules give a starting severity. The AI Auditor and then YOU make the final call.\nconst cfg = $('2. Prepare Inputs').first().json;\nconst pages = $input.all().map(i => i.json);\nconst robots = $('3. Fetch robots.txt').first().json;\nconst sitemap = $('4. Fetch sitemap.xml').first().json;\nconst llms = $('5. Fetch llms.txt').first().json;\nconst psi = $('7. Speed Check (PageSpeed)').first().json;\n\n// The HTTP Request node stores the downloaded file in \"data\" (\"body\" in some older versions)\nconst content = r => (r && typeof r.data === 'string') ? r.data : ((r && typeof r.body === 'string') ? r.body : '');\nconst ok = r => r && !r.error && r.statusCode >= 200 && r.statusCode < 300 && content(r) !== '';\n\n// ---------- robots.txt: who is allowed in? ----------\nconst BOTS = [\n  ['Googlebot', 'search', 'Google Search and Google AI Overviews'],\n  ['Bingbot', 'search', 'Bing, Copilot, and a source for other AI search tools'],\n  ['OAI-SearchBot', 'search', 'ChatGPT search results'],\n  ['ChatGPT-User', 'search', 'ChatGPT opening a page when a user asks'],\n  ['PerplexityBot', 'search', 'Perplexity answers'],\n  ['Claude-SearchBot', 'search', 'Claude search results'],\n  ['GPTBot', 'training', 'OpenAI model training'],\n  ['ClaudeBot', 'training', 'Anthropic model training'],\n  ['Google-Extended', 'training', 'Gemini training/grounding (does NOT affect Google Search or AI Overviews)'],\n  ['Applebot-Extended', 'training', 'Apple AI training'],\n  ['CCBot', 'training', 'Common Crawl, a dataset many AI models learn from'],\n];\nconst robotsTxt = ok(robots) ? content(robots) : '';\nconst groups = [];\nconst declaredSitemaps = [];\nlet cur = null, lastWasAgent = false;\nfor (let line of robotsTxt.split(/\\r?\\n/)) {\n  line = line.replace(/#.*/, '').trim();\n  const m = line.match(/^([a-z-]+)\\s*:\\s*(.*)$/i);\n  if (!m) continue;\n  const key = m[1].toLowerCase(), val = m[2].trim();\n  if (key === 'user-agent') {\n    if (!lastWasAgent) { cur = { agents: [], rules: [] }; groups.push(cur); }\n    cur.agents.push(val.toLowerCase());\n    lastWasAgent = true;\n  } else {\n    lastWasAgent = false;\n    if (key === 'sitemap') declaredSitemaps.push(val);\n    else if (cur && (key === 'allow' || key === 'disallow')) cur.rules.push({ type: key, path: val });\n  }\n}\nconst robotsStatus = robots && !robots.error ? robots.statusCode : 0;\nfunction botAccess(bot) {\n  if (!robotsTxt) {\n    if (robotsStatus === 404 || robotsStatus === 410) return 'allowed (no robots.txt)';\n    if (robotsStatus >= 500) return 'UNKNOWN (robots.txt gives a server error; Google pauses crawling when this happens)';\n    return 'unknown (could not read robots.txt' + (robotsStatus ? ', status ' + robotsStatus : '') + ')';\n  }\n  let rules = groups.filter(g => g.agents.includes(bot.toLowerCase())).flatMap(g => g.rules);\n  let via = 'its own rules';\n  if (!rules.length) { rules = groups.filter(g => g.agents.includes('*')).flatMap(g => g.rules); via = 'the * rules'; }\n  const fullBlock = rules.some(r => r.type === 'disallow' && (r.path === '/' || r.path === '/*'));\n  const allowRoot = rules.some(r => r.type === 'allow' && (r.path === '/' || r.path === '/*'));\n  if (fullBlock && !allowRoot) return `BLOCKED (by ${via})`;\n  return rules.some(r => r.type === 'disallow' && r.path) ? 'allowed (some folders blocked)' : 'allowed';\n}\nconst crawlerAccess = BOTS.map(([bot, kind, what]) => ({ bot, kind, what, access: botAccess(bot) }));\n\n// ---------- sitemap ----------\nconst sitemapXml = ok(sitemap) ? content(sitemap) : '';\nconst sitemapInfo = {\n  found: /<(urlset|sitemapindex)\\b/i.test(sitemapXml),\n  type: /<sitemapindex\\b/i.test(sitemapXml) ? 'index (points to smaller sitemaps)' : (/<urlset\\b/i.test(sitemapXml) ? 'list of pages' : 'none'),\n  entries: (sitemapXml.match(/<loc>/gi) || []).length,\n  declaredInRobotsTxt: declaredSitemaps.length > 0,\n};\n\n// ---------- speed (Google PageSpeed Insights) ----------\nlet speed = { available: false, note: 'PageSpeed check failed or was skipped. Add a free API key in \"1. Brand Inputs\".' };\nif (psi && psi.lighthouseResult) {\n  const field = (psi.loadingExperience && psi.loadingExperience.metrics) || (psi.originLoadingExperience && psi.originLoadingExperience.metrics) || null;\n  const f = k => field && field[k] ? { value: field[k].percentile, rating: field[k].category } : null;\n  const a = psi.lighthouseResult.audits || {};\n  speed = {\n    available: true,\n    page: cfg.origin + '/ (mobile)',\n    labScore: Math.round((psi.lighthouseResult.categories.performance.score || 0) * 100),\n    labLCP: a['largest-contentful-paint'] ? a['largest-contentful-paint'].displayValue : '',\n    realUsers: field ? {\n      LCP_ms: f('LARGEST_CONTENTFUL_PAINT_MS'),\n      INP_ms: f('INTERACTION_TO_NEXT_PAINT'),\n      CLS_x100: f('CUMULATIVE_LAYOUT_SHIFT_SCORE'),\n    } : 'Not enough real-user data (small site). Only the lab score is available.',\n    note: 'Google ranks on REAL-USER data (Core Web Vitals), not the lab score. Speed is a tie-breaker, not a main ranking factor.',\n  };\n} else if (psi && psi.error) {\n  speed.note = 'PageSpeed check failed: ' + String(psi.error.message || JSON.stringify(psi.error)).slice(0, 160) + ' Fix: add a free PageSpeed API key in \"1. Brand Inputs\".';\n}\n\n// ---------- page-level rules ----------\nconst issues = [];\nconst flag = (check, severityHint, list, why) => {\n  if (list.length) issues.push({ check, severityHint, count: list.length, examples: list.slice(0, 5), why });\n};\nconst live = pages.filter(p => p.status >= 200 && p.status < 300);\nconst urlsOf = arr => arr.map(p => p.url);\n\nflag('Page is broken or unreachable', 'critical', pages.filter(p => !(p.status >= 200 && p.status < 300)).map(p => `${p.url} (status ${p.status || 'no response'})`), 'Visitors and crawlers hit a dead end.');\nflag('Page tells Google not to index it (noindex)', 'critical', urlsOf(live.filter(p => p.noindex)), 'This page can never show up in Google or AI answers.');\nflag('Content seems to load only with JavaScript', 'critical', urlsOf(live.filter(p => p.looksJsRendered)), 'Many AI crawlers do not run JavaScript, so they see an empty page. Check by hand.');\nflag('Canonical tag points to a different page', 'important', live.filter(p => p.canonicalPointsElsewhere).map(p => `${p.url} -> ${p.canonical}`), 'Google may drop this page in favour of the other one.');\nflag('Missing title', 'important', urlsOf(live.filter(p => !p.title)), 'The title is the headline in search results.');\nconst byTitle = {};\nlive.filter(p => p.title).forEach(p => (byTitle[p.title.toLowerCase()] = byTitle[p.title.toLowerCase()] || []).push(p.url));\nflag('Two or more pages share the same title', 'important', Object.entries(byTitle).filter(([, u]) => u.length > 1).map(([t, u]) => `\"${t}\" on ${u.join(', ')}`), 'Google cannot tell which page to show.');\nflag('Missing H1 (main heading)', 'important', urlsOf(live.filter(p => p.h1Count === 0 && !p.looksJsRendered)), 'Readers and machines use it to understand what the page is about.');\nflag('Thin page (under 250 words)', 'important', live.filter(p => p.words < 250 && !p.looksJsRendered).map(p => `${p.url} (${p.words} words)`), 'Too little to answer a question well. Fine for contact pages, a problem for service pages.');\nflag('Not mobile-ready (no viewport tag)', 'important', urlsOf(live.filter(p => !p.hasViewport)), 'Google ranks the mobile version of the site.');\nflag('Broken structured data (invalid JSON-LD)', 'important', urlsOf(live.filter(p => p.brokenSchemaBlocks > 0)), 'Search engines ignore schema they cannot read.');\nconst home = live.find(p => p.foundIn === 'homepage');\nconst homeSchema = home ? home.schemaTypes : '';\nif (home && !/Organization|LocalBusiness|Dentist|Restaurant|Store|MedicalBusiness|Corporation|Brand/i.test(homeSchema)) {\n  flag('Homepage has no Organization / LocalBusiness schema', 'important', [home.url], 'This is how Google and AI tools learn who the business is, where it is and how to contact it.');\n}\nflag('No structured data at all', 'nice-to-have', urlsOf(live.filter(p => !p.schemaTypes && !p.looksJsRendered)), 'Schema helps machines understand the page. It does not boost rankings by itself.');\nflag('Missing meta description', 'nice-to-have', urlsOf(live.filter(p => !p.metaDescription)), 'Google often writes its own snippet anyway. Matters most on key money pages.');\nflag('Title longer than 65 characters', 'nice-to-have', live.filter(p => p.titleLength > 65).map(p => `${p.url} (${p.titleLength} chars)`), 'Gets cut off in results. Cosmetic, not a ranking problem.');\nflag('More than one H1', 'nice-to-have', urlsOf(live.filter(p => p.h1Count > 1)), 'Google has said this is fine. Only a tidiness issue.');\nflag('Images missing alt text', 'nice-to-have', live.filter(p => p.imagesMissingAlt > 0).map(p => `${p.url} (${p.imagesMissingAlt} of ${p.imagesTotal})`), 'Helps accessibility and image search.');\nif (live.length && !live.some(p => p.questionHeadings > 0)) {\n  flag('No page uses question-style headings', 'important', ['whole site'], 'AI answers pull from pages that ask and answer the exact question people type.');\n}\nconst blockedSearch = crawlerAccess.filter(c => c.kind === 'search' && c.access.startsWith('BLOCKED'));\nflag('Search or AI-answer crawlers are blocked', blockedSearch.some(c => c.bot === 'Googlebot') ? 'critical' : 'important', blockedSearch.map(c => `${c.bot} (${c.what})`), 'Blocked crawlers cannot show or cite the site.');\nconst blockedTraining = crawlerAccess.filter(c => c.kind === 'training' && c.access.startsWith('BLOCKED'));\nflag('AI training crawlers are blocked', 'business decision', blockedTraining.map(c => `${c.bot} (${c.what})`), 'Not an error. Blocking training bots is a choice, but it can reduce how well AI models know the brand.');\nif (robotsStatus >= 500) flag('robots.txt returns a server error', 'critical', [cfg.origin + '/robots.txt'], 'Google stops crawling a site whose robots.txt keeps failing.');\nif (!sitemapInfo.found) flag('No sitemap.xml found at /sitemap.xml', 'important', [cfg.origin + '/sitemap.xml'], 'A sitemap helps Google find every page. (It may live at another address; check robots.txt.)');\nelse if (!sitemapInfo.declaredInRobotsTxt) flag('Sitemap not listed in robots.txt', 'nice-to-have', [cfg.origin + '/robots.txt'], 'Small fix that helps crawlers find it.');\n\nreturn [{\n  json: {\n    brand: cfg.brandName,\n    website: cfg.origin,\n    pagesChecked: pages.length,\n    sampleNote: `This is a sample of ${pages.length} pages (homepage, its links, then sitemap), not a full crawl.`,\n    issues,\n    crawlerAccess,\n    sitemap: sitemapInfo,\n    llmsTxt: ok(llms) ? 'present (informational only: no major AI engine has confirmed it uses llms.txt)' : 'not present (not a problem: llms.txt is unproven)',\n    speed,\n    homepageSchema: homeSchema || 'none',\n    deliberatelyIgnored: [\n      'meta keywords tag (Google ignores it)',\n      'keyword density (not a ranking factor)',\n      '\"Domain Authority\" scores (made up by SEO tool companies, not used by Google)',\n      'HTML/W3C validation errors and text-to-HTML ratio',\n      'sitemap priority/changefreq values (Google ignores them)',\n    ],\n    pages: pages.map(p => ({\n      url: p.url, status: p.status, title: p.title, h1: p.h1, words: p.words,\n      schema: p.schemaTypes, questionHeadings: p.questionHeadings, lastModified: p.lastModified,\n    })),\n  },\n}];\n"
+      },
+      "id": "a1b2c3d4-0000-4000-8000-000000000023",
+      "name": "11. Rule-Based Checks",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        640
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Brand: {{ $('2. Prepare Inputs').first().json.brandName }}, a {{ $('2. Prepare Inputs').first().json.businessType }} serving {{ $('2. Prepare Inputs').first().json.market }}\nWebsite: {{ $('2. Prepare Inputs').first().json.origin }}\nBusiness goal: {{ $('2. Prepare Inputs').first().json.businessGoal }}\n\nFACTS collected by code (JSON). Each issue has a \"severityHint\" from fixed rules. You may move an issue up or down, but say why.\n{{ JSON.stringify($json, null, 1) }}\n\nWhat AI assistants say today (checked by hand):\n{{ $('2. Prepare Inputs').first().json.aiVisibilityNotes }}\n\nWrite the audit in Markdown:\n\n### Critical (stops Google or AI tools from finding or trusting the site)\n### Important (holds rankings or AI mentions back)\n### Nice to have\nFor each issue: **name**, example pages (max 3), why it matters for THIS business in one sentence, the fix, effort (S/M/L).\n\n### Ignore for now (noise)\nThings an audit tool would flag that do not matter here, each with a one-line reason. Include any rule-based issue you think is overrated.\n\n### AI search readiness\n2-4 bullets: crawler access, question-and-answer content, schema, and what the AI visibility notes show.\n\n### What I could not check\nBe honest. Examples: real traffic (needs Google Search Console), backlinks, keyword volumes, pages outside the sample.\n\nStay under 700 words. No intro paragraph.",
+        "messages": {
+          "messageValues": [
+            {
+              "message": "You are a senior SEO and AEO (Answer Engine Optimization) auditor.\nYou work ONLY from the facts you are given. You never invent numbers, pages or problems.\nYou know the difference between issues that change rankings or AI citations and cosmetic warnings that audit tools love to flag.\nWrite in clear, plain English."
+            }
+          ]
+        }
+      },
+      "id": "a1b2c3d4-0000-4000-8000-000000000024",
+      "name": "12. AI Auditor",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        960,
+        640
+      ]
+    },
+    {
+      "parameters": {
+        "options": {
+          "temperature": 0.2
+        }
+      },
+      "id": "a1b2c3d4-0000-4000-8000-000000000025",
+      "name": "Gemini (Auditor)",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.2,
+      "position": [
+        1040,
+        860
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a1b2c3d4-0000-4000-8000-000000000026",
+              "name": "reviewerNotes",
+              "value": "No human corrections yet. After reading the AI Auditor output, write your corrections here (for example: \"Missing meta descriptions are not critical, Google rewrites them. The real priority is the noindex tag on the service pages.\") and run the workflow again.",
+              "type": "string"
+            },
+            {
+              "id": "a1b2c3d4-0000-4000-8000-000000000027",
+              "name": "businessGoal",
+              "value": "={{ $('2. Prepare Inputs').first().json.businessGoal }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a1b2c3d4-0000-4000-8000-000000000028",
+      "name": "13. Your Review (Human Checkpoint)",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1260,
+        640
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Brand: {{ $('2. Prepare Inputs').first().json.brandName }}, a {{ $('2. Prepare Inputs').first().json.businessType }} serving {{ $('2. Prepare Inputs').first().json.market }}\nBusiness goal: {{ $json.businessGoal || $('2. Prepare Inputs').first().json.businessGoal }}\nCompetitors: {{ $('2. Prepare Inputs').first().json.competitors.join(', ') || 'not given' }}\n\nA) AUDIT (written by an AI auditor):\n{{ $('12. AI Auditor').first().json.text }}\n\nB) HUMAN STRATEGIST'S CORRECTIONS. These override the audit wherever they disagree:\n{{ $json.reviewerNotes }}\n\nC) QUESTIONS REAL CUSTOMERS ASK:\n{{ $('2. Prepare Inputs').first().json.questions.map((q, i) => (i + 1) + '. ' + q).join('\\n') }}\n\nD) WHAT AI ASSISTANTS SAY TODAY:\n{{ $('2. Prepare Inputs').first().json.aiVisibilityNotes }}\n\nE) PAGES THAT EXIST TODAY:\n{{ $('11. Rule-Based Checks').first().json.pages.map(p => '- ' + p.url + (p.status === 200 ? '' : ' (BROKEN, status ' + p.status + ')') + ' | title: ' + p.title + ' | H1: ' + p.h1 + ' | ' + p.words + ' words').join('\\n') }}\n\nWrite the content strategy in Markdown:\n\n### 1. Fix first\nA table: Page | Problem (from the audit) | Fix. Max 6 rows, highest impact first.\n\n### 2. Answer map\nFor EACH customer question: is it answered by an existing page? If yes, which page and what is missing. If no, propose a new page: title, URL slug, page type (service, location, guide, FAQ, comparison), the direct 40-60 word answer to put at the top, and the schema type to add.\n\n### 3. Topic clusters\n3 clusters. Each: one pillar page plus 3-4 supporting pages. Mark which pages already exist.\n\n### 4. Trust and local signals\nGoogle Business Profile, reviews, and mentions on other websites that AI tools read (directories, news, Reddit, YouTube). Be specific to this business type.\n\n### 5. 90-day plan\nA table: Weeks | Task | Owner (Agency or Client) | Why.\n\nIf you would need keyword data to be sure about something, say so instead of guessing.",
+        "messages": {
+          "messageValues": [
+            {
+              "message": "You are a content strategist for a growth agency. Every recommendation must trace back to an audit finding or a real customer question. No generic SEO advice. Never invent search volumes, traffic numbers or rankings."
+            }
+          ]
+        }
+      },
+      "id": "a1b2c3d4-0000-4000-8000-000000000029",
+      "name": "14. AI Strategist",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        1500,
+        640
+      ]
+    },
+    {
+      "parameters": {
+        "options": {
+          "temperature": 0.5
+        }
+      },
+      "id": "a1b2c3d4-0000-4000-8000-000000000030",
+      "name": "Gemini (Strategist)",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.2,
+      "position": [
+        1580,
+        860
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=The owner of {{ $('2. Prepare Inputs').first().json.brandName }} ({{ $('2. Prepare Inputs').first().json.businessType }}, {{ $('2. Prepare Inputs').first().json.market }}) does not know anything about SEO.\nTurn the audit and plan below into a short note they will actually read.\n\nAUDIT:\n{{ $('12. AI Auditor').first().json.text }}\n\nHUMAN CORRECTIONS (these win):\n{{ $('13. Your Review (Human Checkpoint)').first().json.reviewerNotes }}\n\nPLAN:\n{{ $('14. AI Strategist').first().json.text }}\n\nFormat (Markdown):\n**Website health:** one traffic-light emoji (🟢, 🟡 or 🔴) and one sentence.\n\n**3 things costing you customers right now**\nFor each: what is wrong, what it costs you, what we will do. Use a simple everyday comparison where it helps.\n\n**What we will create next** (5 short bullets)\n\n**What we need from you** (access, photos, reviews, answers to questions)\n\n**What we don't know yet** (be honest about gaps)\n\nUnder 300 words. Short sentences.",
+        "messages": {
+          "messageValues": [
+            {
+              "message": "You explain marketing work to busy small-business owners. You never use jargon. If a technical word is unavoidable, explain it in brackets in five words or fewer. You talk about customers, calls, bookings and money."
+            }
+          ]
+        }
+      },
+      "id": "a1b2c3d4-0000-4000-8000-000000000031",
+      "name": "15. AI Translator (Owner Summary)",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        1800,
+        640
+      ]
+    },
+    {
+      "parameters": {
+        "options": {
+          "temperature": 0.4
+        }
+      },
+      "id": "a1b2c3d4-0000-4000-8000-000000000032",
+      "name": "Gemini (Translator)",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.2,
+      "position": [
+        1880,
+        860
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Puts everything into one report: owner summary first, details after.\nconst cfg = $('2. Prepare Inputs').first().json;\nconst facts = $('11. Rule-Based Checks').first().json;\nconst review = $('13. Your Review (Human Checkpoint)').first().json;\nconst reviewed = review.reviewerNotes && !/^No human corrections yet/i.test(review.reviewerNotes);\nconst text = name => { try { return $(name).first().json.text || '(no output)'; } catch (e) { return '(step did not run)'; } };\nconst esc = s => String(s ?? '').replace(/\\|/g, '\\\\|').replace(/\\n/g, ' ');\n\nconst pageRows = facts.pages.map(p =>\n  `| ${esc(p.url)} | ${p.status} | ${esc(p.title).slice(0, 60)} | ${p.words} | ${esc(p.schema) || '-'} |`).join('\\n');\nconst botRows = facts.crawlerAccess.map(c => `| ${c.bot} | ${c.kind} | ${c.access} | ${esc(c.what)} |`).join('\\n');\n\n// Speed in plain words, e.g. \"Loading (LCP): 3.9 s (AVERAGE)\"\nconst sp = facts.speed;\nconst ru = sp.realUsers;\nconst speedLine = !sp.available ? sp.note\n  : `Lab score (mobile, simulated): **${sp.labScore}/100**, main content loads in ${sp.labLCP}.\\n\\n` +\n    (typeof ru === 'string' ? ru : 'Real visitors (last 28 days): ' + [\n      ru.LCP_ms && `loading (LCP) ${(ru.LCP_ms.value / 1000).toFixed(1)} s (${ru.LCP_ms.rating})`,\n      ru.INP_ms && `response to taps (INP) ${ru.INP_ms.value} ms (${ru.INP_ms.rating})`,\n      ru.CLS_x100 && `layout jumps (CLS) ${(ru.CLS_x100.value / 100).toFixed(2)} (${ru.CLS_x100.rating})`,\n    ].filter(Boolean).join(', ') + '.') + '\\n\\n' + sp.note;\n\nconst md = `# SEO & AEO Audit: ${cfg.brandName}\n\n**Website:** ${cfg.origin}  \n**Date:** ${new Date().toISOString().slice(0, 10)}  \n**How this was made:** code collected the facts, AI wrote the analysis, ${reviewed ? 'a human reviewed and corrected it.' : '**human review not done yet** (draft).'}\n\n---\n\n## 1. Summary for the business owner\n\n${text('15. AI Translator (Owner Summary)')}\n\n---\n\n## 2. Audit: what is wrong, in priority order\n\n${text('12. AI Auditor')}\n\n---\n\n## 3. Human review notes\n\n${reviewed ? review.reviewerNotes : '_Not reviewed yet. This is an unreviewed AI draft._'}\n\n---\n\n## 4. Content strategy\n\n${text('14. AI Strategist')}\n\n---\n\n## Appendix A: Pages checked\n\n${facts.sampleNote}\n\n| URL | Status | Title | Words | Schema |\n|---|---|---|---|---|\n${pageRows}\n\n## Appendix B: Who can read the site (robots.txt)\n\n| Crawler | Type | Access | What it powers |\n|---|---|---|---|\n${botRows}\n\n## Appendix C: Speed\n\n${speedLine}\n\n## Appendix D: Checked on purpose and ignored as noise\n\n${facts.deliberatelyIgnored.map(x => '- ' + x).join('\\n')}\n`;\n\nreturn [{ json: { reportMarkdown: md } }];\n"
+      },
+      "id": "a1b2c3d4-0000-4000-8000-000000000033",
+      "name": "16. Assemble Report",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        1160
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "markdownToHtml",
+        "markdown": "={{ $json.reportMarkdown }}",
+        "destinationKey": "reportHtml",
+        "options": {
+          "tables": true,
+          "simpleLineBreaks": false,
+          "openLinksInNewWindow": true
+        }
+      },
+      "id": "a1b2c3d4-0000-4000-8000-000000000034",
+      "name": "17. Markdown to HTML",
+      "type": "n8n-nodes-base.markdown",
+      "typeVersion": 1,
+      "position": [
+        1180,
+        1160
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Wraps the report in a clean web page you can open in any browser.\nconst body = $input.first().json.reportHtml;\nconst title = 'SEO & AEO Audit: ' + $('2. Prepare Inputs').first().json.brandName;\nconst html = `<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>${title}</title>\n<style>\n body{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;max-width:900px;margin:40px auto;padding:0 16px;line-height:1.6;color:#1f2933;background:#fff}\n h1{border-bottom:3px solid #4f46e5;padding-bottom:8px} h2{margin-top:40px;color:#312e81} h3{color:#4338ca}\n table{border-collapse:collapse;width:100%;font-size:14px;margin:16px 0;display:block;overflow-x:auto}\n th,td{border:1px solid #d9dde3;padding:6px 10px;text-align:left;vertical-align:top} th{background:#eef2ff}\n code{background:#f3f4f6;padding:2px 4px;border-radius:4px;font-size:13px} hr{border:0;border-top:1px solid #e5e7eb;margin:32px 0}\n</style></head><body>${body}</body></html>`;\nreturn [{ json: { html, fileName: 'seo-aeo-audit-' + $('2. Prepare Inputs').first().json.host + '.html' } }];\n"
+      },
+      "id": "a1b2c3d4-0000-4000-8000-000000000035",
+      "name": "18. Make Web Page",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1400,
+        1160
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "toBinary",
+        "sourceProperty": "html",
+        "options": {
+          "dataIsBase64": false,
+          "encoding": "utf8",
+          "mimeType": "text/html",
+          "fileName": "={{ $json.fileName }}"
+        }
+      },
+      "id": "a1b2c3d4-0000-4000-8000-000000000036",
+      "name": "19. Report File (download me)",
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1,
+      "position": [
+        1620,
+        1160
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## 👉 START HERE\n1. Open **1. Brand Inputs (EDIT ME)** and fill in the brand.\n2. Add your free Gemini key to the 3 **Gemini** nodes (one credential, reused).\n3. Click **Execute workflow**. Takes 1–3 minutes.\n4. Open **19. Report File**, click **Download**.",
+        "height": 240,
+        "width": 500,
+        "color": 4
+      },
+      "id": "a1b2c3d4-0000-4000-8000-000000000037",
+      "name": "Note: Start here",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -60,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## PART 1 · Site-wide checks (code, no AI)\nReads the files every search engine and AI crawler reads first: **robots.txt** (who is allowed in), **sitemap.xml** (list of pages), **llms.txt** (unproven, info only), the **homepage**, and Google **PageSpeed** on mobile. Missing files do not stop the flow.",
+        "height": 340,
+        "width": 1160,
+        "color": 7
+      },
+      "id": "a1b2c3d4-0000-4000-8000-000000000038",
+      "name": "Note: Part 1",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        600,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## PART 2 · Page facts (code, no AI)\nPicks up to *maxPages* pages (homepage → its menu links → sitemap), downloads each one, and writes down facts: status, title, H1, word count, noindex, canonical, schema, question headings, alt text.\n**11** applies fixed rules and gives each issue a starting severity.\n\n**Why code here? Code cannot hallucinate.**",
+        "height": 520,
+        "width": 900,
+        "color": 5
+      },
+      "id": "a1b2c3d4-0000-4000-8000-000000000039",
+      "name": "Note: Part 2",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -60,
+        480
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## PART 3 · AI + your judgment\n**12 Auditor** ranks the issues and names the noise → **13 YOU** correct it → **14 Strategist** turns audit + customer questions into a content plan → **15 Translator** rewrites it for the business owner.\nEach AI step has one job and its own prompt. Swap Gemini for Claude or OpenAI by changing the model node.",
+        "height": 560,
+        "width": 1160,
+        "color": 6
+      },
+      "id": "a1b2c3d4-0000-4000-8000-000000000040",
+      "name": "Note: Part 3",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        900,
+        480
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## PART 4 · Report\nCombines everything into one web page: owner summary first, then audit, your notes, strategy and the raw facts as proof.",
+        "height": 280,
+        "width": 960,
+        "color": 3
+      },
+      "id": "a1b2c3d4-0000-4000-8000-000000000041",
+      "name": "Note: Part 4",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        900,
+        1080
+      ]
+    }
+  ],
+  "connections": {
+    "Start": {
+      "main": [
+        [
+          {
+            "node": "1. Brand Inputs (EDIT ME)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "1. Brand Inputs (EDIT ME)": {
+      "main": [
+        [
+          {
+            "node": "2. Prepare Inputs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "2. Prepare Inputs": {
+      "main": [
+        [
+          {
+            "node": "3. Fetch robots.txt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "3. Fetch robots.txt": {
+      "main": [
+        [
+          {
+            "node": "4. Fetch sitemap.xml",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "4. Fetch sitemap.xml": {
+      "main": [
+        [
+          {
+            "node": "5. Fetch llms.txt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "5. Fetch llms.txt": {
+      "main": [
+        [
+          {
+            "node": "6. Fetch Homepage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "6. Fetch Homepage": {
+      "main": [
+        [
+          {
+            "node": "7. Speed Check (PageSpeed)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "7. Speed Check (PageSpeed)": {
+      "main": [
+        [
+          {
+            "node": "8. Build Page List",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "8. Build Page List": {
+      "main": [
+        [
+          {
+            "node": "9. Fetch Pages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "9. Fetch Pages": {
+      "main": [
+        [
+          {
+            "node": "10. Extract Page Signals",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "10. Extract Page Signals": {
+      "main": [
+        [
+          {
+            "node": "11. Rule-Based Checks",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Page Table (CSV download)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "11. Rule-Based Checks": {
+      "main": [
+        [
+          {
+            "node": "12. AI Auditor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "12. AI Auditor": {
+      "main": [
+        [
+          {
+            "node": "13. Your Review (Human Checkpoint)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "13. Your Review (Human Checkpoint)": {
+      "main": [
+        [
+          {
+            "node": "14. AI Strategist",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "14. AI Strategist": {
+      "main": [
+        [
+          {
+            "node": "15. AI Translator (Owner Summary)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "15. AI Translator (Owner Summary)": {
+      "main": [
+        [
+          {
+            "node": "16. Assemble Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "16. Assemble Report": {
+      "main": [
+        [
+          {
+            "node": "17. Markdown to HTML",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "17. Markdown to HTML": {
+      "main": [
+        [
+          {
+            "node": "18. Make Web Page",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "18. Make Web Page": {
+      "main": [
+        [
+          {
+            "node": "19. Report File (download me)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini (Auditor)": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "12. AI Auditor",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini (Strategist)": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "14. AI Strategist",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini (Translator)": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "15. AI Translator (Owner Summary)",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false
+  }
+}
