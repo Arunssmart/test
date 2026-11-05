@@ -10,7 +10,7 @@ import cv2
 import numpy as np
 from PIL import Image
 
-from . import edit, organize, report, scan, sheets
+from . import edit, instagram, organize, report, scan, sheets
 
 
 def _fake_photo(seed, w=1800, h=1200, blur=0.0, dark=1.0):
@@ -103,10 +103,19 @@ def run():
         sheets.qa_sheets(work, out)
         os.makedirs(os.path.join(out, "Posts"), exist_ok=True)
         with open(os.path.join(out, "Posts", "2017-03-12.md"), "w") as f:
-            f.write("Test post\n#wildlife")
+            f.write(f"photos: {ids[0]}, {ids[1]}\naspect: 4:5\nalt-{ids[0]}: A test tiger.\n"
+                    f"fit-{ids[1]}: border\n---\nTest post first line\n\n#wildlife #tiger")
+        instagram.run(work, out)
+        ig = os.path.join(out, "Instagram", "2017-03-12")
+        shots = sorted(f for f in os.listdir(ig) if f.endswith(".jpg"))
+        assert len(shots) == 2, shots
+        assert all(Image.open(os.path.join(ig, f)).size == (1080, 1350) for f in shots)
+        with open(os.path.join(ig, "caption.txt")) as f:
+            assert f.read().startswith("Test post first line")
         report.run(work, out)
         with open(os.path.join(out, "index.html")) as f:
-            assert "Test post" in f.read()
+            page = f.read()
+            assert "Test post first line" in page and "Instagram/2017-03-12/01_" in page
         print("\nSELFTEST PASSED")
     finally:
         shutil.rmtree(tmp, ignore_errors=True)

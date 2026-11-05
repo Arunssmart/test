@@ -2,11 +2,12 @@
 with any post drafts shown alongside. Opens in any browser; works offline."""
 
 import csv
+import glob
 import html
 import os
 from collections import defaultdict
 
-from . import common
+from . import common, instagram
 
 CSS = """
 :root { --bg:#f6f5f2; --fg:#1d1d1b; --muted:#6b6a66; --card:#ffffff; --line:#e3e1dc; --accent:#3d6b4f; }
@@ -36,6 +37,8 @@ figcaption a { color:var(--accent); font-size:13px; }
 .post { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:12px 16px;
         margin:12px 0 0; white-space:pre-wrap; font-size:14px; }
 .post-title { font-size:13px; color:var(--muted); margin:14px 0 0; }
+.carousel { display:flex; gap:6px; overflow-x:auto; margin:8px 0 0; }
+.carousel img { height:200px; border-radius:6px; border:1px solid var(--line); }
 """
 
 
@@ -84,11 +87,17 @@ def run(work, out, title="Wildlife picks"):
                     f"<span>{html.escape(r['id'])}{' · ' + html.escape(shot) if shot else ''}</span><br>"
                     f"<a href='{html.escape(full)}'>full size</a></figcaption></figure>")
             parts.append("</div>")
-            post = os.path.join(out, "Posts", f"{d}.md")
-            if os.path.exists(post):
-                with open(post) as f:
-                    parts.append(f"<div class='post-title'>Post draft · Posts/{d}.md</div>"
-                                 f"<div class='post'>{html.escape(f.read())}</div>")
+            for post in sorted(glob.glob(os.path.join(out, "Posts", f"{d}*.md"))):
+                name = os.path.splitext(os.path.basename(post))[0]
+                p = instagram.parse_post(post)
+                ig = sorted(glob.glob(os.path.join(out, "Instagram", name, "*.jpg")))
+                parts.append(f"<div class='post-title'>Instagram post · Posts/{html.escape(name)}.md"
+                             f"{' · ready in Instagram/' + html.escape(name) if ig else ''}</div>")
+                if ig:
+                    parts.append("<div class='carousel'>" + "".join(
+                        f"<img loading='lazy' src='{html.escape(os.path.relpath(x, out).replace(os.sep, '/'))}'>"
+                        for x in ig) + "</div>")
+                parts.append(f"<div class='post'>{html.escape(p['body'])}</div>")
     parts.append("</main></body></html>")
     path = os.path.join(out, "index.html")
     with open(path, "w") as f:

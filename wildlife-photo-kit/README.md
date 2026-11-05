@@ -11,10 +11,13 @@ read, never changed or moved.
 - **Edited**: your best wildlife shots at full size, with exposure, white balance,
   highlights and shadows, contrast, colour, noise and sharpness adjusted, plus crops. The
   original date and camera data are kept.
-- **Social**: 2048 px copies of the same edits, ready to post.
-- **Posts** (if you want them): a draft caption, photo order and hashtags for each shooting
-  day.
-- **index.html**: a gallery of everything, by year and date. It opens in any browser.
+- **Social**: 2048 px copies of the same edits, for sharing anywhere else (WhatsApp, Facebook,
+  a website).
+- **Instagram**: a post for each shooting day, ready to upload. You get the photos at
+  1080 × 1350 in carousel order, `caption.txt` (with up to 5 hashtags, Instagram's limit) and
+  `alt-text.txt`.
+- **index.html**: a gallery of everything, by year and date, with each day's Instagram post.
+  It opens in any browser.
 
 ## Set up on your Mac (about 5 minutes)
 
@@ -32,8 +35,16 @@ read, never changed or moved.
 4. **Avoid constant approvals.** Switch the permission mode to auto, so Claude doesn't stop
    to ask before each command.
 
-Claude checks in with you twice: once at the start, to confirm the folders, and once after
-5 sample edits, so you can approve the editing style.
+Claude checks in with you twice. At the start, it confirms the folders. Later, it shows 5
+sample edits and 2 sample captions, so you can approve the editing style and the caption
+voice: the tone, emoji, language, a camera settings line, and your handle or signature
+hashtag.
+
+## Posting
+
+AirDrop a post's folder from `Instagram/` to your iPhone, or post from instagram.com on the
+Mac. Add the photos in their numbered order, then paste `caption.txt`. Add the alt text from
+`alt-text.txt` in the post's accessibility settings.
 
 ## How long it takes (5,000 photos)
 
@@ -61,6 +72,8 @@ bash setup.sh
 .venv/bin/python kit.py sheets          # contact sheets in work/sheets
 # write work/picks.csv (see CLAUDE.md for the columns)
 .venv/bin/python kit.py edit --out ~/Pictures/"Wildlife Picks" --compare
+# write Posts/<date>.md files (see CLAUDE.md, Step 7)
+.venv/bin/python kit.py instagram --out ~/Pictures/"Wildlife Picks"
 .venv/bin/python kit.py report --out ~/Pictures/"Wildlife Picks"
 ```
 

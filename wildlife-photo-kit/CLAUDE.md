@@ -6,7 +6,8 @@ from 2017 onward) on their Mac. The job:
 1. Sort every photo by the date it was taken.
 2. Find the wildlife photos and pick the best ones from each shooting day.
 3. Edit the picks so they look professionally processed.
-4. Draft social media posts per shooting day, if the user wants them.
+4. Write an Instagram post for each shooting day: photos at Instagram's size, a caption,
+   hashtags and alt text.
 5. Build a gallery page of the results.
 
 The user asked for this to run on its own. Ask them things only at the two points marked
@@ -120,8 +121,8 @@ id,species,caption,aspect,cx,cy,zoom,rotate,ev,warmth,style,notes
 ```
 
 Leave a column blank to use the automatic setting.
-- `aspect`: `orig` (default), `3:2`, `4:5`, `1:1`, `16:9` and so on. Use `4:5` or `1:1` for
-  photos likely to go on Instagram.
+- `aspect`: `orig` (default), `3:2`, `4:5`, `1:1`, `16:9` and so on. Choose the best
+  composition for the full-size photo. The Instagram shape is handled separately in Step 7.
 - `cx,cy`: centre of the crop, as fractions read off the ticks. Put the animal off-centre,
   roughly on a third, with room in the direction it faces.
 - `zoom`: 1.0 is the largest crop of that shape; 0.7 is tighter. Keep at least about 6 MP
@@ -141,15 +142,21 @@ Pick 5 finals with different light and subjects, then run:
 .venv/bin/python kit.py edit --out "OUT" --only ID1,ID2,ID3,ID4,ID5 --compare
 ```
 
-Look at `work/review/compare/<id>.jpg` (before and after side by side). Fix anything that's
-off, then **ASK** the user. Give them the full paths of the 5 edited files in
-`OUT/Edited/...` so they can open them in Preview, and ask:
-- Is this look right? Options: natural (the default), vivid, soft, bw; warmer or cooler;
-  brighter or darker; more or less contrast.
-- Do they want post drafts, and for which platform?
+Look at `work/review/compare/<id>.jpg` (before and after side by side) and fix anything
+that's off. Then write the Instagram posts for two of these photos' days as samples (format
+in Step 7).
 
-This is the last question. Apply the answer with `--style` for everything, or per photo in
-picks.csv.
+**ASK** the user, in one message:
+- **The look.** Give the full paths of the 5 edited files in `OUT/Edited/...` so they can
+  open them in Preview. Is the look right? Options: natural (the default), vivid, soft, bw;
+  warmer or cooler; brighter or darker; more or less contrast.
+- **The captions.** Paste the two sample captions. Is the voice right? Ask about the tone
+  (storytelling, short and factual, or educational), emoji (the default is just 📷),
+  language, whether to include a camera settings line, their Instagram handle or signature
+  hashtag, and anything they never want in captions.
+
+This is the last question. Apply the look with `--style` for everything, or per photo in
+picks.csv. Save the caption preferences in `work/progress.md` so every post follows them.
 
 ## Step 6: Edit everything and check
 
@@ -173,14 +180,88 @@ Each photo gets two outputs:
   and camera data kept;
 - `OUT/Social/...`: a 2048 px copy, sharpened for screens.
 
-## Step 7: Post drafts (only if wanted)
+## Step 7: Instagram posts
 
-For each shooting day with picks, write `OUT/Posts/YYYY-MM-DD.md` containing:
-- a caption of 2–4 sentences, first person, saying only what the photos and data show;
-- the photo order (file names in `OUT/Social/...`, at most 10 for Instagram, strongest
-  first);
-- the species list;
-- 10–20 relevant hashtags.
+Write one post for each shooting day that has picks, as `OUT/Posts/YYYY-MM-DD.md`. For a
+trip where several days have only one or two picks each, one post can cover the whole trip.
+Name it after the first day, for example `2019-05-12-bandipur.md`. The format:
+
+```
+photos: 20190512-014, 20190512-031, 20190512-002
+aspect: 4:5
+location: Bandipur National Park
+alt-20190512-014: An Indian peafowl displays its raised tail feathers in soft morning light.
+alt-20190512-031: A spotted deer stag looks up from grazing at the edge of a forest clearing.
+alt-20190512-002: A wide view of a dry riverbed with a herd of elephants crossing.
+fit-20190512-002: border
+crop-20190512-031: 0.4,0.5
+---
+The caption, exactly as it should appear on Instagram.
+```
+
+**Photos**
+- Up to 10, strongest first. The first photo is the cover in the feed and on the profile
+  grid. After that, mix close-ups, behaviour and the animal in its habitat.
+- Every slide takes the cover's shape. Use `aspect: 4:5` (the default), which fills the
+  most screen.
+- If the 4:5 crop cuts off part of the animal (a tail, a wingtip, feet), move the centre with
+  `crop-<id>: x,y` (fractions of the edited photo), or use `fit-<id>: border`. A border keeps
+  the whole frame on white, which suits wide habitat shots. Add `border: black` for a black
+  border instead.
+- `location` is a suggestion for Instagram's location tag. Fill it in only from folder names
+  or clear GPS; otherwise leave it out.
+
+**The caption**
+- **The first line is the hook.** Keep it under 125 characters, because only that much shows
+  before "more". Say what's special about this moment, specifically. "Nature is beautiful"
+  is not a hook.
+- **Then 1–3 short paragraphs:** what the animal is doing, the light, a field note. Write in
+  the first person, in the user's voice. State only what the photos and data show. The
+  timestamps tell you how long the user was with an animal (first frame to last). One
+  natural-history fact is fine if it's well established. Never invent numbers, behaviour you
+  can't see, or details of where or how the photo was taken.
+- **A species line:** the common name, plus the scientific name when you're sure, for
+  example `Indian peafowl (Pavo cristatus)`. If you're unsure, leave the scientific name out.
+- **A camera settings line,** if the user wants one, from the cover photo's data, for
+  example `📷 Nikon D7500 · 300mm · f/5.6 · 1/1000s · ISO 400`.
+- **Captive animals:** say so (for example "at the rescue centre"). Never present a captive
+  animal as wild.
+- **Hashtags: 5 at most** (Instagram's limit since December 2025), on their own line at the
+  end. Use the species, the animal group, the place if known, and one or two photography tags
+  such as #wildlifephotography. The user's own signature tag counts toward the 5. Skip spam
+  tags like #like4like or #instagood.
+- Aim for 300–900 characters in total. Instagram's limit is 2,200.
+- **Alt text** for every photo: one plain sentence describing what's visible, for people who
+  use screen readers.
+- Follow the voice the user chose in Step 5.
+
+An example:
+
+```
+photos: 20170312-001
+aspect: 4:5
+alt-20170312-001: A young bald eagle with mottled brown and white feathers stands side-on at the water's edge, looking right.
+---
+Still a few years away from that famous white head.
+
+Bald eagles wear this mottled brown-and-white plumage for their first four to five years. This one stood side-on at the water's edge, which made for a clean full-body portrait.
+
+Bald eagle (Haliaeetus leucocephalus), juvenile
+📷 Nikon D7500 · 300mm · f/5.6 · 1/1000s · ISO 400
+
+#baldeagle #birdsofprey #birdphotography #wildlifephotography #naturephotography
+```
+
+Then export the posts:
+
+```
+.venv/bin/python kit.py instagram --out "OUT"
+```
+
+This writes `OUT/Instagram/<post>/`, containing the numbered 1080×1350 photos, `caption.txt`
+and `alt-text.txt`. It flags problems: too many hashtags or photos, a long first line,
+missing alt text. Fix every flag. Then look at each `work/review/instagram/<post>.jpg`, fix
+any crop that cuts off the animal, and run it again.
 
 ## Step 8: Gallery and wrap-up
 
@@ -188,6 +269,12 @@ For each shooting day with picks, write `OUT/Posts/YYYY-MM-DD.md` containing:
 .venv/bin/python kit.py report --out "OUT" --title "Wildlife picks"
 ```
 
-Tell the user what was done: photos sorted, days covered, how many picked and edited, and
-where everything is (BYDATE, `OUT/Edited`, `OUT/Social`, `OUT/Posts`). Tell them to open
-`OUT/index.html` to browse.
+Tell the user what was done: photos sorted, days covered, how many photos were picked and
+edited, and how many posts are ready. Say where everything is: BYDATE, `OUT/Edited`,
+`OUT/Social` and `OUT/Instagram`. Tell them to open `OUT/index.html` to browse it all with
+the captions.
+
+Also tell them how to post. AirDrop a post's folder from `OUT/Instagram` to their iPhone,
+or post from instagram.com on the Mac. Add the photos in their numbered order and paste
+`caption.txt`. Add each photo's alt text from `alt-text.txt` in the post's accessibility
+settings, and the location tag if one is suggested there.

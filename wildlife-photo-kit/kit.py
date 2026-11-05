@@ -2,7 +2,7 @@
 """Wildlife Photo Kit: sort photos by date, review them, and edit the best ones.
 
 Run `python3 kit.py <step> --help` for options. The usual order is:
-  scan -> organize -> sheets -> preview -> edit -> qa -> report
+  scan -> organize -> sheets -> preview -> edit -> qa -> instagram -> report
 Your original photos are only ever read, never changed or moved.
 """
 
@@ -74,6 +74,11 @@ def main(argv=None):
     p.add_argument("--work", default=DEFAULT_WORK)
     p.add_argument("--out", required=True)
 
+    p = sub.add_parser("instagram", help="export Instagram-ready photos, captions and alt text for each post file")
+    p.add_argument("--work", default=DEFAULT_WORK)
+    p.add_argument("--out", required=True)
+    p.add_argument("--width", type=int, default=1080, help="width of the exported photos (Instagram uses 1080)")
+
     p = sub.add_parser("report", help="build index.html gallery of the edited photos")
     p.add_argument("--work", default=DEFAULT_WORK)
     p.add_argument("--out", required=True)
@@ -111,6 +116,9 @@ def main(argv=None):
     elif a.cmd == "qa":
         from photokit import sheets
         sheets.qa_sheets(a.work, a.out)
+    elif a.cmd == "instagram":
+        from photokit import instagram
+        instagram.run(a.work, a.out, width=a.width)
     elif a.cmd == "report":
         from photokit import report
         report.run(a.work, a.out, title=a.title)
